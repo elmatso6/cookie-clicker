@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cookie Clicker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #1a0a00; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: 'Nunito', sans-serif; padding: 10px; }
+    .game { background: linear-gradient(135deg, #3d1e00 0%, #6b3300 50%, #3d1e00 100%); min-height: 520px; display: flex; border-radius: 12px; overflow: hidden; width: 100%; max-width: 600px; box-shadow: 0 20px 60px rgba(0,0,0,0.8); position: relative; flex-direction: column; }
+    @media (min-width: 768px) { .game { flex-direction: row; } }
+    .left-panel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 16px; gap: 12px; position: relative; }
+    .cookie-count { font-family: 'Fredoka One', cursive; font-size: 24px; color: #ffd580; text-align: center; text-shadow: 0 2px 8px rgba(0,0,0,0.5); line-height: 1.2; }
+    @media (min-width: 768px) { .cookie-count { font-size: 26px; } }
+    .cookie-count span { font-size: 14px; color: #ffb347; display: block; font-family: 'Nunito', sans-serif; font-weight: 600; }
+    .cookie-btn { width: 110px; height: 110px; border-radius: 50%; border: none; cursor: pointer; background: radial-gradient(circle at 35% 35%, #c87941, #7a3e10); box-shadow: 0 8px 24px rgba(0,0,0,0.6), inset 0 -4px 8px rgba(0,0,0,0.4), inset 0 4px 8px rgba(255,200,100,0.3); font-size: 60px; display: flex; align-items: center; justify-content: center; transition: transform 0.08s; touch-action: manipulation; }
+    @media (min-width: 768px) { .cookie-btn { width: 130px; height: 130px; font-size: 72px; } }
+    .cookie-btn:active { transform: scale(0.93); }
+    .cookie-btn:hover { transform: scale(1.05); }
+    .stats-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .stat-pill { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,179,71,0.3); border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #ffb347; font-weight: 600; white-space: nowrap; }
+    .stat-pill.click-stat { border-color: rgba(150,255,200,0.35); color: #80ffbb; }
+    .particles-container { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; overflow: hidden; }
+    .particle { position: absolute; pointer-events: none; font-size: 13px; font-weight: 700; color: #ffd580; text-shadow: 0 1px 3px rgba(0,0,0,0.8); animation: floatUp 1s ease-out forwards; }
+    @keyframes floatUp { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-60px) scale(0.7)} }
+    .right-panel { width: 100%; max-width: 250px; background: rgba(0,0,0,0.45); border-left: 1px solid rgba(255,179,71,0.15); display: flex; flex-direction: column; }
+    @media (max-width: 767px) { .right-panel { max-width: 100%; border-left: none; border-top: 1px solid rgba(255,179,71,0.15); } }
+    .tabs { display: flex; border-bottom: 1px solid rgba(255,179,71,0.15); }
+    .tab { flex: 1; padding: 10px 4px; text-align: center; font-family: 'Fredoka One', cursive; font-size: 13px; color: #ffb347; opacity: 0.5; cursor: pointer; transition: opacity 0.15s, background 0.15s; }
+    .tab.active { opacity: 1; background: rgba(255,179,71,0.1); border-bottom: 2px solid #ffd580; }
+    .tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .tab-content.active { display: flex; }
+    .shop-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 5px; }
+    .shop-list::-webkit-scrollbar { width: 4px; }
+    .shop-list::-webkit-scrollbar-thumb { background: rgba(255,179,71,0.3); border-radius: 2px; }
+    .shop-item { background: rgba(255,179,71,0.08); border: 1px solid rgba(255,179,71,0.15); border-radius: 8px; padding: 7px 9px; cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.08s; display: flex; align-items: center; gap: 7px; }
+    .shop-item:hover:not(.disabled):not(.bought) { background: rgba(255,179,71,0.18); border-color: rgba(255,179,71,0.4); transform: translateX(-2px); }
+    .shop-item.disabled { opacity: 0.4; cursor: not-allowed; }
+    .shop-item.affordable { border-color: rgba(100,255,150,0.4); background: rgba(100,255,150,0.06); }
+    .shop-item.upgrade-item { border-color: rgba(150,200,255,0.2); background: rgba(100,150,255,0.06); }
+    .shop-item.upgrade-item.affordable { border-color: rgba(120,220,255,0.5); background: rgba(100,200,255,0.1); }
+    .shop-item.upgrade-item.bought { border-color: rgba(100,255,150,0.3); background: rgba(60,180,100,0.12); opacity: 0.6; cursor: default; }
+    .item-icon { font-size: 20px; flex-shrink: 0; }
+    .item-info { flex: 1; min-width: 0; }
+    .item-name { font-size: 11px; font-weight: 700; color: #ffd580; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-sub { font-size: 10px; color: #ffb347; opacity: 0.8; }
+    .upgrade-badge { font-size: 9px; background: rgba(100,180,255,0.25); color: #a0d8ff; padding: 1px 5px; border-radius: 4px; margin-top: 1px; display: inline-block; }
+    .upgrade-badge.bought { background: rgba(100,255,150,0.2); color: #80ffaa; }
+    .item-right { text-align: right; flex-shrink: 0; }
+    .item-cost { font-size: 11px; font-weight: 700; color: #ffe4a0; }
+    .item-count { font-size: 10px; color: #ffb347; opacity: 0.7; }
+    .bottom-bar { padding: 6px 8px; border-top: 1px solid rgba(255,179,71,0.15); display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .prestige-text { font-size: 10px; color: #ffb347; opacity: 0.7; }
+    .reset-btn { padding: 4px 10px; background: rgba(200,50,50,0.2); border: 1px solid rgba(200,50,50,0.3); border-radius: 6px; color: #ff9980; font-size: 10px; cursor: pointer; font-family: 'Nunito', sans-serif; font-weight: 600; }
+    .reset-btn:hover { background: rgba(200,50,50,0.35); }
+    .milestone { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(255,213,128,0.95); color: #4a2000; padding: 6px 16px; border-radius: 20px; font-family: 'Fredoka One', cursive; font-size: 13px; pointer-events: none; animation: popIn 2.5s ease-out forwards; z-index: 50; white-space: nowrap; }
+    @keyframes popIn { 0%{opacity:0;transform:translateX(-50%) scale(0.8)} 15%{opacity:1;transform:translateX(-50%) scale(1.05)} 25%{transform:translateX(-50%) scale(1)} 75%{opacity:1} 100%{opacity:0;transform:translateX(-50%) scale(0.9)} }
+    .cheat-button { position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; background: transparent; border: none; cursor: pointer; z-index: 100; }
+    .cheat-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 200; }
+    .cheat-overlay.active { display: flex; }
+    .cheat-panel { background: linear-gradient(135deg, #3d1e00 0%, #6b3300 50%, #3d1e00 100%); border: 2px solid rgba(255,179,71,0.4); border-radius: 12px; padding: 20px; max-width: 90%; max-height: 90vh; overflow-y: auto; width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.9); }
+    .cheat-title { font-family: 'Fredoka One', cursive; font-size: 24px; color: #ffd580; margin-bottom: 15px; text-align: center; }
+    .cheat-section { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,179,71,0.15); }
+    .cheat-section:last-child { border-bottom: none; }
+    .cheat-label { color: #ffb347; font-size: 12px; font-weight: 600; margin-bottom: 8px; display: block; }
+    .cheat-input { width: 100%; padding: 8px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,179,71,0.3); border-radius: 6px; color: #ffd580; font-family: 'Nunito', sans-serif; margin-bottom: 6px; }
+    .cheat-input:focus { outline: none; border-color: rgba(255,179,71,0.6); }
+    .cheat-input::placeholder { color: rgba(255,179,71,0.4); }
+    .cheat-button-group { display: flex; gap: 8px; margin-bottom: 10px; }
+    .cheat-btn { flex: 1; padding: 8px 12px; background: rgba(100,200,255,0.2); border: 1px solid rgba(100,200,255,0.4); border-radius: 6px; color: #a0d8ff; cursor: pointer; font-family: 'Nunito', sans-serif; font-weight: 600; font-size: 11px; transition: background 0.15s; }
+    .cheat-btn:hover { background: rgba(100,200,255,0.35); }
+    .cheat-btn.danger { background: rgba(200,50,50,0.2); border-color: rgba(200,50,50,0.4); color: #ff9980; }
+    .cheat-btn.danger:hover { background: rgba(200,50,50,0.35); }
+    .cheat-close { float: right; font-size: 24px; color: #ffb347; cursor: pointer; }
+    .cheat-close:hover { color: #ffd580; }
+  </style>
+</head>
+<body>
+<div class="game" id="game">
+  <button class="cheat-button" onclick="toggleCheatPanel()" title="Cheats"></button>
+  <div class="particles-container" id="particles"></div>
+  <div class="left-panel">
+    <div class="cookie-count" id="count">0<span>Kekse</span></div>
+    <button class="cookie-btn" onclick="clickCookie(event)">🍪</button>
+    <div class="stats-row">
+      <div class="stat-pill click-stat" id="clickStat">+1 / Klick</div>
+      <div class="stat-pill" id="cpsStat">0 / Sek.</div>
+    </div>
+  </div>
+  <div class="right-panel">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('auto')">⚙️ Auto</div>
+      <div class="tab" onclick="switchTab('click')">👆 Klick</div>
+    </div>
+    <div class="tab-content active" id="tab-auto">
+      <div class="shop-list" id="autoList"></div>
+    </div>
+    <div class="tab-content" id="tab-click">
+      <div class="shop-list" id="clickList"></div>
+    </div>
+    <div class="bottom-bar">
+      <span class="prestige-text" id="prestige">Gesamt: 0</span>
+      <button class="reset-btn" onclick="resetGame()">↺ Neustart</button>
+    </div>
+  </div>
+</div>
+
+<div class="cheat-overlay" id="cheatOverlay" onclick="if(event.target===this) toggleCheatPanel()">
+  <div class="cheat-panel">
+    <span class="cheat-close" onclick="toggleCheatPanel()">✕</span>
+    <div class="cheat-title">🎮 Cheat Menü</div>
+    
+    <div class="cheat-section">
+      <label class="cheat-label">Cookies hinzufügen:</label>
+      <input type="number" id="addCookiesInput" class="cheat-input" placeholder="Anzahl eingeben" value="1000">
+      <button class="cheat-btn" onclick="addCookies()">➕ Cookies</button>
+    </div>
+    
+    <div class="cheat-section">
+      <label class="cheat-label">CPC setzen (Cookies pro Klick):</label>
+      <input type="number" id="setCpcInput" class="cheat-input" placeholder="1" value="100" min="1">
+      <button class="cheat-btn" onclick="setCpc()">⚡ CPC ändern</button>
+    </div>
+    
+    <div class="cheat-section">
+      <label class="cheat-label">CPS setzen (Cookies pro Sekunde):</label>
+      <input type="number" id="setCpsInput" class="cheat-input" placeholder="0" value="100" min="0">
+      <button class="cheat-btn" onclick="setCps()">🔄 CPS ändern</button>
+    </div>
+    
+    <div class="cheat-section">
+      <label class="cheat-label">Item-Menge setzen:</label>
+      <select id="itemSelect" class="cheat-input">
+        <option value="">-- Wähle ein Item --</option>
+        <option value="cursor">👆 Cursor</option>
+        <option value="grandma">👵 Oma</option>
+        <option value="farm">🌾 Bauernhof</option>
+        <option value="mine">⛏️ Mine</option>
+        <option value="factory">🏭 Fabrik</option>
+        <option value="bank">🏦 Bank</option>
+        <option value="temple">⛩️ Tempel</option>
+        <option value="wizard">🧙 Zauberer</option>
+      </select>
+      <input type="number" id="itemCountInput" class="cheat-input" placeholder="Anzahl" value="10" min="0">
+      <button class="cheat-btn" onclick="setItemCount()">📦 Item-Menge</button>
+    </div>
+    
+    <div class="cheat-section">
+      <label class="cheat-label">Upgrades:</label>
+      <button class="cheat-btn" onclick="buyAllUpgrades()">🎁 Alle Upgrades</button>
+      <button class="cheat-btn" onclick="buyAllItems()">🏪 Alle Items x100</button>
+    </div>
+    
+    <div class="cheat-section">
+      <label class="cheat-label">Andere Cheats:</label>
+      <div class="cheat-button-group">
+        <button class="cheat-btn" onclick="multiplyAll(2)">2x Multiplikator</button>
+        <button class="cheat-btn" onclick="multiplyAll(10)">10x Multiplikator</button>
+      </div>
+      <button class="cheat-btn danger" onclick="resetCheats()">❌ Cheats zurücksetzen</button>
+    </div>
+  </div>
+</div>
+ 
+<script>
+const AUTO_ITEMS = [
+  { id:'cursor',  icon:'👆', name:'Cursor',     baseCost:15,        baseCps:0.5,   desc:'0.5/Sek.' },
+  { id:'grandma', icon:'👵', name:'Oma',         baseCost:100,       baseCps:1.5,   desc:'1.5/Sek.' },
+  { id:'farm',    icon:'🌾', name:'Bauernhof',   baseCost:1100,      baseCps:8,     desc:'8/Sek.' },
+  { id:'mine',    icon:'⛏️', name:'Mine',         baseCost:12000,     baseCps:25,    desc:'25/Sek.' },
+  { id:'factory', icon:'🏭', name:'Fabrik',      baseCost:130000,    baseCps:80,    desc:'80/Sek.' },
+  { id:'bank',    icon:'🏦', name:'Bank',         baseCost:1400000,   baseCps:250,   desc:'250/Sek.' },
+  { id:'temple',  icon:'⛩️', name:'Tempel',      baseCost:20000000,  baseCps:800,   desc:'800/Sek.' },
+  { id:'wizard',  icon:'🧙', name:'Zauberer',    baseCost:330000000, baseCps:15000, desc:'15000/Sek.' },
+];
+ 
+const CLICK_UPGRADES = [
+  { id:'cu1', icon:'🖱️', name:'Doppelklick',   cost:200,         bonus:1,     desc:'+1 pro Klick' },
+  { id:'cu2', icon:'✊',  name:'Starke Faust',  cost:2000,        bonus:3,     desc:'+3 pro Klick' },
+  { id:'cu3', icon:'⚡',  name:'Blitzfinger',   cost:20000,       bonus:10,    desc:'+10 pro Klick' },
+  { id:'cu4', icon:'🔥',  name:'Feuerhand',     cost:250000,      bonus:30,    desc:'+30 pro Klick' },
+  { id:'cu5', icon:'💎',  name:'Diamantklick',  cost:3000000,     bonus:100,   desc:'+100 pro Klick' },
+  { id:'cu6', icon:'🌟',  name:'Sternenkraft',  cost:40000000,    bonus:500,   desc:'+500 pro Klick' },
+  { id:'cu7', icon:'🚀',  name:'Hyperklick',    cost:600000000,   bonus:2000,  desc:'+2000 pro Klick' },
+  { id:'cu8', icon:'🌌',  name:'Galaxisfinger', cost:10000000000, bonus:10000, desc:'+10000 pro Klick' },
+];
+ 
+let state = (() => { try { return JSON.parse(localStorage.getItem('ccs3') || 'null'); } catch(e) { return null; } })()
+  || { cookies:0, total:0, owned:{}, boughtUpgrades:[], lastSave:Date.now() };
+ 
+function fmt(n) {
+  n = Math.floor(n);
+  if (n < 1000) return n+'';
+  if (n < 1e6)  return (n/1000).toFixed(1)+'K';
+  if (n < 1e9)  return (n/1e6).toFixed(2)+'M';
+  if (n < 1e12) return (n/1e9).toFixed(2)+'B';
+  return (n/1e12).toFixed(2)+'T';
+}
+ 
+function fmtCps(n) {
+  if (n < 1000) return n.toFixed(1);
+  if (n < 1e6)  return (n/1000).toFixed(2)+'K';
+  return (n/1e6).toFixed(2)+'M';
+}
+ 
+function getClickPower() {
+  return 1 + CLICK_UPGRADES.reduce((s,u) => s + (state.boughtUpgrades.includes(u.id) ? u.bonus : 0), 0);
+}
+ 
+function getCps() {
+  return AUTO_ITEMS.reduce((s,i) => s + i.baseCps * (state.owned[i.id]||0), 0);
+}
+ 
+function getAutoCost(item) {
+  return Math.ceil(item.baseCost * Math.pow(1.15, state.owned[item.id]||0));
+}
+ 
+function clickCookie(e) {
+  const power = getClickPower();
+  state.cookies += power;
+  state.total += power;
+  const container = document.getElementById('particles');
+  const rect = container.getBoundingClientRect();
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.textContent = '+' + fmt(power);
+  p.style.left = (e.clientX - rect.left - 16) + 'px';
+  p.style.top  = (e.clientY - rect.top  - 20) + 'px';
+  container.appendChild(p);
+  setTimeout(() => p.remove(), 1000);
+  checkMilestones();
+  update();
+}
+ 
+function buyAuto(id) {
+  const item = AUTO_ITEMS.find(i => i.id === id);
+  const cost = getAutoCost(item);
+  if (state.cookies < cost) return;
+  state.cookies -= cost;
+  state.owned[id] = (state.owned[id]||0) + 1;
+  update(); renderAutoShop();
+}
+ 
+function buyUpgrade(id) {
+  const u = CLICK_UPGRADES.find(u => u.id === id);
+  if (!u || state.boughtUpgrades.includes(u.id) || state.cookies < u.cost) return;
+  state.cookies -= u.cost;
+  state.boughtUpgrades.push(u.id);
+  update(); renderClickShop();
+  showMilestone('✨ ' + u.name + ' freigeschaltet!');
+}
+ 
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (tab==='auto'&&i===0)||(tab==='click'&&i===1)));
+  document.getElementById('tab-auto').classList.toggle('active', tab==='auto');
+  document.getElementById('tab-click').classList.toggle('active', tab==='click');
+}
+ 
+function renderAutoShop() {
+  document.getElementById('autoList').innerHTML = AUTO_ITEMS.map(item => {
+    const cost = getAutoCost(item);
+    const can  = state.cookies >= cost;
+    const count = state.owned[item.id]||0;
+    return `<div class="shop-item ${can?'affordable':'disabled'}" onclick="buyAuto('${item.id}')">
+      <span class="item-icon">${item.icon}</span>
+      <div class="item-info"><div class="item-name">${item.name}</div><div class="item-sub">${item.desc}</div></div>
+      <div class="item-right"><div class="item-cost">🍪 ${fmt(cost)}</div><div class="item-count">x${count}</div></div>
+    </div>`;
+  }).join('');
+}
+ 
+function renderClickShop() {
+  document.getElementById('clickList').innerHTML = CLICK_UPGRADES.map(u => {
+    const bought = state.boughtUpgrades.includes(u.id);
+    const can    = !bought && state.cookies >= u.cost;
+    const cls    = bought ? 'bought' : can ? 'affordable' : 'disabled';
+    return `<div class="shop-item upgrade-item ${cls}" onclick="${bought?'':'buyUpgrade(\''+u.id+'\')'}">
+      <span class="item-icon">${u.icon}</span>
+      <div class="item-info">
+        <div class="item-name">${u.name}</div>
+        <div class="item-sub">${u.desc}</div>
+        <span class="upgrade-badge ${bought?'bought':''}">${bought?'✓ Gekauft':'Einmalig'}</span>
+      </div>
+      <div class="item-right">
+        <div class="item-cost">${bought?'✓':'🍪 '+fmt(u.cost)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+ 
+function updateAffordability() {
+  document.querySelectorAll('#autoList .shop-item').forEach((el,i) => {
+    const item = AUTO_ITEMS[i];
+    const cost = getAutoCost(item);
+    const can  = state.cookies >= cost;
+    el.classList.toggle('affordable', can);
+    el.classList.toggle('disabled', !can);
+    const ce = el.querySelector('.item-cost'); if(ce) ce.textContent = '🍪 '+fmt(cost);
+    const co = el.querySelector('.item-count'); if(co) co.textContent = 'x'+(state.owned[item.id]||0);
+  });
+  document.querySelectorAll('#clickList .shop-item').forEach((el,i) => {
+    const u = CLICK_UPGRADES[i];
+    if (state.boughtUpgrades.includes(u.id)) return;
+    const can = state.cookies >= u.cost;
+    el.classList.toggle('affordable', can);
+    el.classList.toggle('disabled', !can);
+  });
+}
+ 
+const milestones = [10,100,1000,10000,100000,1e6,1e7,1e8,1e9];
+let shownM = new Set(JSON.parse(localStorage.getItem('ccsM3')||'[]'));
+ 
+function checkMilestones() {
+  for (const m of milestones) {
+    if (state.total >= m && !shownM.has(m)) {
+      shownM.add(m);
+      showMilestone('🎉 '+fmt(m)+' Kekse gebacken!');
+    }
+  }
+}
+ 
+function showMilestone(msg) {
+  const el = document.createElement('div');
+  el.className = 'milestone';
+  el.textContent = msg;
+  document.getElementById('game').appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+ 
+function update() {
+  document.getElementById('count').innerHTML = fmt(state.cookies)+'<span>Kekse</span>';
+  document.getElementById('clickStat').textContent = '+'+fmt(getClickPower())+' / Klick';
+  const cps = getCps();
+  document.getElementById('cpsStat').textContent = fmtCps(cps)+' / Sek.';
+  document.getElementById('prestige').textContent = 'Gesamt: '+fmt(state.total);
+  updateAffordability();
+  save();
+}
+ 
+function save() {
+  localStorage.setItem('ccs3', JSON.stringify({...state, lastSave:Date.now()}));
+  localStorage.setItem('ccsM3', JSON.stringify([...shownM]));
+}
+ 
+function resetGame() {
+  if (confirm('Wirklich neu starten? Alle Kekse und Upgrades gehen verloren!')) {
+    state = { cookies:0, total:0, owned:{}, boughtUpgrades:[], lastSave:Date.now() };
+    shownM = new Set();
+    localStorage.removeItem('ccs3');
+    localStorage.removeItem('ccsM3');
+    renderAutoShop(); renderClickShop(); update();
+  }
+}
+
+function toggleCheatPanel() {
+  document.getElementById('cheatOverlay').classList.toggle('active');
+}
+
+function addCookies() {
+  const amt = parseFloat(document.getElementById('addCookiesInput').value) || 0;
+  if (amt > 0) {
+    state.cookies += amt;
+    state.total += amt;
+    update();
+    showMilestone('💰 +' + fmt(amt) + ' Kekse hinzugefügt!');
+  }
+}
+
+function setCpc() {
+  const target = parseFloat(document.getElementById('setCpcInput').value) || 1;
+  state.boughtUpgrades = [];
+  const needed = Math.ceil(Math.log(target) / Math.log(2)) - 1;
+  for (let i = 0; i < Math.min(needed, CLICK_UPGRADES.length); i++) {
+    const bonus = CLICK_UPGRADES[i].bonus;
+    if (target > 1) state.boughtUpgrades.push(CLICK_UPGRADES[i].id);
+  }
+  if (needed >= CLICK_UPGRADES.length) {
+    for (let u of CLICK_UPGRADES) state.boughtUpgrades.push(u.id);
+  }
+  update();
+  renderClickShop();
+  showMilestone('⚡ CPC auf ~' + fmt(getClickPower()) + ' gesetzt!');
+}
+
+function setCps() {
+  const target = parseFloat(document.getElementById('setCpsInput').value) || 0;
+  state.owned = {};
+  if (target === 0) {
+    update();
+    showMilestone('🔄 CPS auf 0 gesetzt!');
+    return;
+  }
+  for (let item of AUTO_ITEMS) {
+    const amount = Math.ceil(target / item.baseCps);
+    if (amount > 0) state.owned[item.id] = amount;
+  }
+  update();
+  renderAutoShop();
+  showMilestone('🔄 CPS auf ~' + fmtCps(getCps()) + '/Sek. gesetzt!');
+}
+
+function setItemCount() {
+  const itemId = document.getElementById('itemSelect').value;
+  const count = Math.max(0, parseInt(document.getElementById('itemCountInput').value) || 0);
+  if (!itemId) { alert('Bitte ein Item wählen!'); return; }
+  if (count === 0) delete state.owned[itemId];
+  else state.owned[itemId] = count;
+  update();
+  renderAutoShop();
+  showMilestone('📦 ' + itemId + ' x' + count + ' gesetzt!');
+}
+
+function buyAllUpgrades() {
+  state.boughtUpgrades = CLICK_UPGRADES.map(u => u.id);
+  update();
+  renderClickShop();
+  showMilestone('🎁 Alle Upgrades freigeschaltet!');
+}
+
+function buyAllItems() {
+  for (let item of AUTO_ITEMS) {
+    state.owned[item.id] = 100;
+  }
+  update();
+  renderAutoShop();
+  showMilestone('🏪 Alle Items x100!');
+}
+
+function multiplyAll(mult) {
+  state.cookies *= mult;
+  state.total *= mult;
+  for (let item of AUTO_ITEMS) {
+    if (state.owned[item.id]) state.owned[item.id] = Math.ceil(state.owned[item.id] * mult);
+  }
+  update();
+  renderAutoShop();
+  showMilestone('🚀 ' + mult + 'x Multiplikator angewendet!');
+}
+
+function resetCheats() {
+  if (confirm('Wirklich alle Cheats zurücksetzen?')) {
+    toggleCheatPanel();
+    resetGame();
+  }
+}
+
+ 
+const saved = (() => { try { return JSON.parse(localStorage.getItem('ccs3')||'null'); } catch(e){return null;} })();
+if (saved && saved.lastSave) {
+  const elapsed = (Date.now() - saved.lastSave) / 1000;
+  const earned  = elapsed * getCps();
+  if (earned > 1) { state.cookies += earned; state.total += earned; }
+}
+ 
+setInterval(() => {
+  const cps = getCps();
+  if (cps > 0) { const g=cps/20; state.cookies+=g; state.total+=g; checkMilestones(); update(); }
+}, 50);
+ 
+renderAutoShop(); renderClickShop(); update();
+</script>
+</body>
+</html>
